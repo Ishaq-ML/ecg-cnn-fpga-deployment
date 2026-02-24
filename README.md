@@ -17,3 +17,10 @@ The project addresses the challenge of deploying deep learning models onto resou
 2. Install dependencies:
    ```bash
    pip install -r requirements.txt
+
+## Dataset Setup
+**Note:** The dataset is not included in this repository due to size constraints.
+
+1. Download the MIT-BIH Arrhythmia Database (CSV format) from [Kaggle](https://www.kaggle.com/datasets/shayanfazeli/heartbeat) or [PhysioNet](https://physionet.org/content/mitdb/).
+2. Create a folder named `mitbih_database` in the root directory.
+3. Place the `.csv` and `.txt` annotation files inside that folder.
