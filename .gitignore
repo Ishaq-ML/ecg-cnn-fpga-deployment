@@ -1,0 +1,13 @@
+# Ignore Data
+data/
+mitbih_database/
+__pycache__/
+*.csv
+*.txt
+
+# Keep the requirements and README, but ignore generated models/outputs if you want
+# (Optional: You might want to upload the trained .tflite model, so maybe keep that)
+*.h5
+
+# Ignore Jupyter checkpoints
+.ipynb_checkpoints
