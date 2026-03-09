@@ -1,0 +1,10 @@
+# Ignore Data
+data/
+mitbih_database/
+__pycache__/
+*.csv
+*.txt
+*.h5
+
+# Ignore Jupyter checkpoints
+.ipynb_checkpoints
