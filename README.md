@@ -55,9 +55,6 @@ ecg-cnn-fpga-deployment/
 ├── Multiclass_ECG_GA.py     # 4-class pipeline retrained with GA-optimal architecture
 ├── ecg_nsga2_nas.py         # NSGA-II Neural Architecture Search (main NAS script)
 │
-├── fpga_outputs/            # Outputs from binary ECG.py run
-├── multiclass_fpga_outputs/ # Outputs from Multiclass_ECG.py run
-├── binary_fpga_outputs/     # Additional binary classification outputs
 │
 ├── Sim/                     # RTL simulation files (Verilog testbench & waveforms)
 │
