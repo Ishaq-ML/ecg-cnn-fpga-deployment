@@ -64,7 +64,7 @@ module top_ecg_classifier(
     wire [511:0] p2_out_bus;
     generate
         for (i = 0; i < 32; i = i + 1) begin : pool2_parallel
-            layer_maxpool2 u_p2 (
+            layer_maxpool1 u_p2 (
                 .clk(clk), .reset(reset),
                 .data_valid_in(c2_valid_bus[i]),
                 .data_in(c2_out_bus[i*16 +: 16]),
