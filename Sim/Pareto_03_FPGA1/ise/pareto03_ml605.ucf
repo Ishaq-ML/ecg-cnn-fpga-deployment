@@ -1,0 +1,62 @@
+##############################################################################
+# pareto03_ml605.ucf
+# User Constraints File — Pareto-03 ECG CNN on ML605 (Virtex-6 XC6VLX240T)
+# ISE 14.7 — 50 MHz clock from Clocking Wizard (CORE Generator)
+# Author  : DhiaKessad
+# Ref     : ML605 Hardware User Guide UG534
+##############################################################################
+
+# ============================================================
+# CLOCK — 200 MHz LVDS input on Bank 13 (J9/H9)
+# Clocking Wizard handles differential input internally.
+# ============================================================
+NET "sys_clk_p" LOC="J9" | IOSTANDARD=LVDS_25 | DIFF_TERM=TRUE;
+NET "sys_clk_n" LOC="H9" | IOSTANDARD=LVDS_25 | DIFF_TERM=TRUE;
+
+NET "sys_clk_p" TNM_NET="sys_clk_p";
+TIMESPEC "TS_sys_clk" = PERIOD "sys_clk_p" 5 ns HIGH 50%;
+
+NET "clk" TNM_NET="clk_50";
+TIMESPEC "TS_clk50" = PERIOD "clk_50" 20 ns HIGH 50%;
+
+# ============================================================
+# RESET - Center 
+# ============================================================
+NET "reset" LOC="G26" | IOSTANDARD=LVCMOS25;
+
+# ============================================================
+# LEDs — GPIO_LED_0..3  (one-hot class output)
+#   LED[0]=Normal  LED[1]=SVEB  LED[2]=VEB  LED[3]=Fusion
+# ============================================================
+NET "led[0]" LOC="AC22" | IOSTANDARD=LVCMOS25 | SLEW=SLOW | DRIVE=4;   # GPIO_LED_0  (UG534 Table 1-21)
+NET "led[1]" LOC="AC24" | IOSTANDARD=LVCMOS25 | SLEW=SLOW | DRIVE=4;   # GPIO_LED_1
+NET "led[2]" LOC="AE22" | IOSTANDARD=LVCMOS25 | SLEW=SLOW | DRIVE=4;   # GPIO_LED_2
+NET "led[3]" LOC="AE23" | IOSTANDARD=LVCMOS25 | SLEW=SLOW | DRIVE=4;   # GPIO_LED_3
+
+# ============================================================
+# USER DIP SWITCHES — sample selector sw[4:0] = DIP0..DIP4
+# sw binary value selects ECG test sample 0..29 from BRAM ROM
+# ============================================================
+NET "sw[0]" LOC="D22" | IOSTANDARD=LVCMOS25;   # GPIO_DIP_SW0
+NET "sw[1]" LOC="C22" | IOSTANDARD=LVCMOS25;   # GPIO_DIP_SW1
+NET "sw[2]" LOC="L21" | IOSTANDARD=LVCMOS25;   # GPIO_DIP_SW2
+NET "sw[3]" LOC="L20" | IOSTANDARD=LVCMOS25;   # GPIO_DIP_SW3
+NET "sw[4]" LOC="C18" | IOSTANDARD=LVCMOS25;   # GPIO_DIP_SW4
+
+# ============================================================
+# LCD — 4-bit interface (Bank 13, 2.5V VCCO)
+# ============================================================
+NET "LCD_RS"    LOC="AC17" | IOSTANDARD=LVCMOS25;
+NET "LCD_RW"    LOC="AB17" | IOSTANDARD=LVCMOS25;
+NET "LCD_E"     LOC="AC16" | IOSTANDARD=LVCMOS25;
+NET "LCD_DB[4]" LOC="AB16" | IOSTANDARD=LVCMOS25;
+NET "LCD_DB[5]" LOC="AA16" | IOSTANDARD=LVCMOS25;
+NET "LCD_DB[6]" LOC="AB15" | IOSTANDARD=LVCMOS25;
+NET "LCD_DB[7]" LOC="AA15" | IOSTANDARD=LVCMOS25;
+
+# ============================================================
+# TIMING IGNORE — non-timing-critical IOs
+# ============================================================
+NET "led[*]" TIG;
+NET "LCD_*"  TIG;
+NET "sw[*]"  TIG;
