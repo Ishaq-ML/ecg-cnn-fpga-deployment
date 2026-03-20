@@ -218,3 +218,165 @@ python Multiclass_ECG_GA.py
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+---
+
+## FPGA Implementation — Kessad Mohamed Dhia Eddine
+
+This section documents the hardware deployment of the Pareto-03 model on the **Xilinx Virtex-6 ML605 FPGA** (XC6VLX240T-1FF1156). The goal is a complete, real-time ECG arrhythmia detection system: from the patient's chest leads to a classification result displayed on an LCD — with no PC in the loop.
+
+### System Architecture
+
+![ECG System Architecture](ECG_Report/ecg_system_architecture.png)
+
+The complete signal chain is:
+
+```
+Patient (ECG leads)
+        │  Analog ECG signal
+        ▼
+┌──────────────────┐
+│  AD8232          │  Instrumentation amplifier + RLD + bandpass filter
+│  ECG Front-End   │  Powered at 2.5 V (matches FPGA I/O bank)
+└────────┬─────────┘
+         │  Conditioned analog signal (0–2.5 V)
+         ▼
+┌──────────────────┐
+│  ADS1115         │  16-bit Σ-Δ ADC, 4-channel, 860 SPS
+│  I²C ADC         │  I²C @ 2.5 V — direct connection, no level-shifter needed
+└────────┬─────────┘
+         │  I²C digital (SDA/SCL, 2.5 V)
+         ▼
+┌─────────────────────────────────────────────────────┐
+│                Xilinx Virtex-6 ML605                │
+│                                                     │
+│  ┌────────────────────────────────────────────┐     │
+│  │  Pre-processing & Windowing (180 samples)  │     │
+│  │  Pareto-03 CNN RTL Engine (5 Blocks)       │     │
+│  │  4-Class Argmax → Result Register          │     │
+│  └────────────────────────────────────────────┘     │
+│                                                     │
+│  Outputs: HD44780 LCD + GPIO LEDs                   │
+└─────────────────────────────────────────────────────┘
+```
+
+**Voltage compatibility note:** By powering both the AD8232 and ADS1115 from the ML605's 2.5 V rail, the I²C bus operates natively at 2.5 V and no voltage level-shifter is required.
+
+---
+
+### RTL Architecture
+
+All layers are implemented as parameterisable Verilog modules with **Q8.8 fixed-point arithmetic** (signed 16-bit two's complement, 8 integer + 8 fractional bits). Weights are loaded into Xilinx Block RAM at bitstream time via `$readmemh`.
+
+| Module | Function |
+|--------|----------|
+| `layer_conv_k5.v` | 5-tap sliding-window MAC (kernel=5, same padding) |
+| `layer_batchnorm.v` | Pre-folded BN: `y = x × W_bn + B_bn` (zero division at runtime) |
+| `layer_maxpool.v` | 2-register stride-2 max comparator |
+| `layer_gap.v` | Global Average Pooling over time axis |
+| `layer_dense0.v` | Dense(64) + ReLU — combinational MAC |
+| `layer_dense1_out.v` | Dense(4) output — combinational MAC |
+
+**Block pipeline (Pareto-03):**
+
+```
+Input (180, 1) — single-lead ECG window
+   → Block 1: Conv1D(8,  k=5) + BN + ReLU + MaxPool  → (90, 8)   [128-bit bus]
+   → Block 2: Conv1D(32, k=5) + BN + ReLU + MaxPool  → (45, 32)  [512-bit bus]
+   → Block 3: Conv1D(16, k=5) + BN + ReLU + MaxPool  → (22, 16)  [256-bit bus]
+   → Block 4: Conv1D(16, k=5) + BN + ReLU + MaxPool  → (11, 16)  [256-bit bus]
+   → Block 5: GAP → Dense(64) + ReLU → Dense(4) → Argmax → class {0,1,2,3}
+```
+
+---
+
+### Fixed-Point Format — Q8.8
+
+```
+Representation : Signed 16-bit two's complement
+Integer bits   : 8  (including sign bit)
+Fractional bits: 8
+Resolution     : 1/256 ≈ 0.0039
+Range          : −128.0 … +127.996
+
+Conversion:
+    float_value = hex_value (as int16) / 256.0
+    hex_value   = round(float_value × 256) & 0xFFFF
+```
+
+When two Q8.8 values are multiplied the intermediate result is Q16.16 (32-bit). The Batch Normalization layer rescales this back to Q8.8. ReLU is implemented as a sign-bit mask on bit 31.
+
+---
+
+### ISE Synthesis
+
+The project targets **Xilinx ISE 14.7** with XST synthesis. Key files in `pareto_03FPGAsim/Synthesis/ise/`:
+
+| File | Purpose |
+|------|---------|
+| `pareto03_ml605.ucf` | Pin constraints (verified vs UG534) |
+| `top_pareto03_ise.v` | Top-level: Clocking Wizard + test ROM + CNN + LCD |
+| `test_all_samples_rom.v` | BRAM ROM holding all 30 test samples (5400 × 16-bit) |
+| `lcd_controller.v` | HD44780 4-bit driver at 50 MHz |
+
+**Clock:** A Clocking Wizard IP (CORE Generator) divides the 200 MHz LVDS input (pins J9/H9) to **50 MHz**.
+
+**UCF pin assignments (UG534 verified):**
+
+| Signal | LOC | Standard |
+|--------|-----|----------|
+| `sys_clk_p/n` | J9 / H9 | LVDS_25 |
+| `reset` (centre button) | G26 | LVCMOS25 |
+| `led[0..3]` | AC22, AC24, AE22, AE23 | LVCMOS25 |
+| `sw[0..4]` (DIP switches) | D22, C22, L21, L20, C18 | LVCMOS25 |
+
+---
+
+### On-Board Test
+
+The 5 User DIP switches (DIP0–DIP4) select one of 30 pre-stored ECG test samples in BRAM. The CNN runs automatically on the selection.
+
+```
+sw[4:0] binary value 0–29  →  BRAM base address = sw × 180
+```
+
+**LCD display:**
+```
+Line 1: Spl:05 Cls:2
+Line 2: VEB
+```
+
+**LED output (one-hot):**
+
+| LED | Pin | Class |
+|-----|-----|-------|
+| LED[0] | AC22 | Normal (N) |
+| LED[1] | AC24 | SVEB |
+| LED[2] | AE22 | VEB |
+| LED[3] | AE23 | Fusion |
+
+Cross-check results against `ECG_optimal_outputs/test_manifest.csv`.
+
+---
+
+### Resource Utilisation (Estimated)
+
+| Resource | Used | Available | % |
+|----------|------|-----------|---|
+| DSP48E1 | 4 | 768 | 0.5% |
+| BRAM36 | 1 | 416 | 0.2% |
+| Parameters | 6,868 | 500K budget | 1.4% |
+| Model size | 22 KB | 3.7 MB BRAM | 0.6% |
+
+---
+
+### Future Work — Silicon Tape-Out
+
+The FPGA implementation is the foundation for a future **ASIC physical design** using:
+
+- **OpenLane 2 / OpenROAD** — open-source RTL-to-GDS flow
+- **SkyWater SKY130 PDK** — 130 nm open-source process, 5 metal layers
+- **Target:** ~0.05 mm² core area estimated for 6,868 parameters at 130 nm
+
+The Static Timing Analysis setup already established in `pareto_03FPGAsim/STA/` provides the timing constraints that will be adapted as SDC files for the ASIC flow. A tape-out through the Google/efabless chipIgnite shuttle or the IHP SG13G2 programme is planned as the next milestone.
+
