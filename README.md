@@ -182,7 +182,7 @@ pip install -r requirements.txt
 
 The MIT-BIH Arrhythmia Database is not included due to size. Download it first:
 
-- **Kaggle:** [MIT-BIH Database (CSV)](https://www.kaggle.com/datasets/ishakkolla/mitbih-database)
+- **Kaggle:** [MIT-BIH Database (CSV)](https://www.kaggle.com/datasets/mondejar/mitbih-database?resource=download)
 - **PhysioNet:** [physionet.org/content/mitdb](https://physionet.org/content/mitdb/)
 
 Then place the `.csv` signal files and `*annotations.txt` files into a folder named `mitbih_database/` in the repository root. The scripts auto-detect the database path on Kaggle (`/kaggle/input/`) and fall back to the local directory.
